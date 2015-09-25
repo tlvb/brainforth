@@ -19,43 +19,51 @@ variable bfc-state
 0 constant default   \ for [].,
 1 constant plusminus \ for + -
 2 constant leftright \ for < >
+16 chars constant mem-unit
 
 \ the address and length of the source
 variable bfc-source-addr
 variable bfc-source-length
 
-: current-addr ( B A O -- B A O A+O )
+: current-addr ( S A O -- S A O A+O )
 	postpone 2dup postpone +
 ; immediate
 
 \ all during run time the forth the analogs to the bf words all operate
-\ on three stack values: B A O ... -- B A O )
+\ on three stack values: S A O ... -- S A O )
 \ O is the current offset for
-\ A which is the allocated memory chunk
-\ where B is the upper bound so that
+\ A which is the address to the allocated memory chunk and
+\ S is the size of the chunk
 
 \ change the offset
 \ takes care of < > type instructions
 \ A+(x & B) will not be out of bounds for any x
-: bf-offset ( B A O delta -- B A O )
-	chars      \ B A O chardelta
-	+          \ B A O+cd
-	2 pick and \ B A (O+delta)&B
+: bf-offset ( S A O delta -- S A O )
+	chars      \ S A O chardelta
+	+          \ S A O+cd
+	dup 3 pick >= if \ (O+delta) >= N
+		\ S A O
+		swap 2 pick mem-unit + \ S O A O+MU
+		resize throw           \ S O A
+		rot over over +        \ O A S A+S
+		mem-unit erase         \ O A S
+		mem-unit + -rot swap   \ S A O
+	then
 ;
 \ change what is stored at the current offset
 \ takes care of + - type instructions
-: bf-data ( B A O delta -- B A O )
-	>r current-addr r> \ B A O A+O delta
-	over c@	+ swap c!    \ B A O A+O delta current
+: bf-data ( S A O delta -- S A O )
+	>r current-addr r> \ S A O A+O delta
+	over c@	+ swap c!  \ S A O A+O delta current
 ;
 \ read a value and store at current offset
 \ takes care of the , instruction
-: bf-in ( B A O -- B A O )
+: bf-in ( S A O -- S A O )
 	current-addr key swap c!
 ;
 \ read data at the current offset and output it
 \ takes care of the . instruction
-: bf-out ( B A O -- B A O )
+: bf-out ( S A O -- S A O )
 	current-addr c@ emit
 ;
 
@@ -70,15 +78,15 @@ variable bfc-source-length
 ;
 
 \ allocate n characters of memory for
-\ the bf program and set up the B A O
+\ the bf program and set up the S A O
 \ values
-: bf-setup ( n -- B A O )
-	dup chars allocate throw \ n a
+: bf-setup ( n -- S A O )
+	mem-unit dup allocate throw \ n a
 	2dup swap erase          \ n a
-	swap 1- chars swap 0     \ B A O
+	swap swap 0     \ S A O
 ;
 \ undoes bf-setup's actions
-: bf-teardown ( run-time: B A O -- )
+: bf-teardown ( run-time: S A O -- )
 	drop nip free throw
 ;
 
@@ -161,8 +169,8 @@ variable bfc-source-length
 \ code to quote and return an xt for a single line of bf code needs to know the amount of memory needed as well
 \ ugly hack
 : bf" ( n "bf code" -- xt )
-	>r :noname r> \ >r> to sneak the memory requirements past the colon-sys
-		postpone literal postpone bf-setup postpone [
+	:noname
+		postpone bf-setup postpone [
 			34 parse
 			load-bf-source
 			compile-bf-source
@@ -175,7 +183,6 @@ variable bfc-source-length
 \ EXAMPLE
 
 : my-hello-world
-	8
 	[bf-setup]
 	[bf]" ++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
 	[bf-teardown]
@@ -191,4 +198,4 @@ see my-hello-world
 cr cr cr cr
 
 
-\ 8 bf" ++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++." execute
+\ bf" ++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++." execute
