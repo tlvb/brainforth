@@ -183,9 +183,12 @@ variable bfc-source-length
 \ EXAMPLE
 
 : my-hello-world
+	." before the big bang" cr
 	[bf-setup]
-	[bf]" ++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
+	[bf]" ++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>"
+	[bf]" ---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
 	[bf-teardown]
+	." after the heat death of the universe" cr
 ;
 
 
