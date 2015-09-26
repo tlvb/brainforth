@@ -2,10 +2,12 @@
 \ ---
 \ in a forth word definition
 \ bf code can be put as such:
-\ ramsize [bf-setup] [bf]" ++--<><>][etc" [bf]" ++--<><>][" [bf-teardown]
+\ [bf-setup] [bf]" ++--<><>][etc" [bf]" ++--<><>][" [bf-teardown]
 \ multiple [bf]" ..." blocks can be placed after each other and will
 \ execute as if one block, as long as they are in the same setup-teardown
 \ area
+\ execution tokens to a bf program can also be created like so:
+\ bf" ++<><>][etc"
 \ compilation is slightly optimized by the fact that stuff like
 \ '++++-' would be compiled as '3 bf+-' and
 \ corresponding compression of >>>>< groups
@@ -14,7 +16,7 @@
 
 \ the counter for stackable operators
 variable bfc-instruction-counter
-\ the state variable for opoerator types
+\ the state variable for operator types
 variable bfc-instruction-type
 0 constant default   \ for []., -not stackable
 1 constant plusminus \ for + -  -stackable
