@@ -7,7 +7,7 @@
 \ execute as if one block, as long as they are in the same setup-teardown
 \ area
 \ compilation is slightly optimized by the fact that stuff like
-\ '++++-' would be compiled as '3 bf-data' and
+\ '++++-' would be compiled as '3 bf+-' and
 \ corresponding compression of >>>>< groups
 \ [] conditional execution/loop blocks are implemented with BEGIN WHILE REPEAT
 \ blocks
@@ -25,7 +25,7 @@ variable bfc-instruction-type
 variable bfc-source-addr
 variable bfc-source-length
 
-: current-addr ( S A O -- S A O A+O )
+: [current-addr] ( S A O -- S A O A+O )
 	postpone 2dup postpone +
 ; immediate
 
@@ -45,7 +45,7 @@ variable bfc-source-length
 \ change the offset                             - target for '<', '>'
 \ would-be negative offsets are set to zero
 \ offsets > allocated memory will trigger a reallocation
-: bf-offset ( S A O delta -- S A O )
+: bf<> ( S A O delta -- S A O )
 	chars      \ S A O chardelta
 	+ 0 max    \ S A max(O+cd,0)
 	dup 3 pick >= if \ (O+delta) >= N ? -> resize
@@ -53,41 +53,29 @@ variable bfc-source-length
 	then
 ;
 \ change what is stored at the current offset   - target for '+', '-'
-: bf-data ( S A O delta -- S A O )
-	>r current-addr r> \ S A O A+O delta
+: bf+- ( S A O delta -- S A O )
+	>r [current-addr] r> \ S A O A+O delta
 	over c@	+ swap c!  \ S A O
 ;
 \ input a value and store at the current offset - target for ','
-: bf-in ( S A O -- S A O )
-	current-addr key swap c!
+: bf, ( S A O -- S A O )
+	[current-addr] key swap c!
 ;
 \ read data at the current offset and output it - target for '.'
-: bf-out ( S A O -- S A O )
-	current-addr c@ emit
+: bf. ( S A O -- S A O )
+	[current-addr] c@ emit
 ;
 
 \ head of loop                                  - target for '['
-\ requires nonzero value at the current offset to execute
+\ loops whene there eis a nonzero value at the current offset
 : compile-bf-lbrace
 	postpone begin
-		postpone current-addr postpone c@
+		postpone [current-addr] postpone c@
 	postpone while
 ;
 \ tail of loop                                  - target for ']'
 : compile-bf-rbrace
 	postpone repeat
-;
-
-\ allocate initial memory for the bf program
-\ and set up the S A O values
-: bf-setup ( -- S A O )
-	mem-unit dup allocate throw \ n a
-	2dup swap erase          \ n a
-	swap swap 0     \ S A O
-;
-\ opposite of bf-setup
-: bf-teardown ( run-time: S A O -- )
-	drop nip free throw
 ;
 
 \ finalizes the stackable operations
@@ -96,13 +84,13 @@ variable bfc-source-length
 		plusminus of
 			bfc-instruction-counter @ ?dup if
 				chars postpone literal
-				postpone bf-data
+				postpone bf+-
 			then
 		endof
 		leftright of
 			bfc-instruction-counter @ ?dup if
 				chars postpone literal
-				postpone bf-offset
+				postpone bf<>
 			then
 		endof
 	endcase
@@ -139,17 +127,12 @@ variable bfc-source-length
 		'< of bfc-instruction-counter dup @ 1- swap ! endof
 		'> of bfc-instruction-counter dup @ 1+ swap ! endof
 		\ postpone unstackable simple operations immediately
-		', of postpone bf-in endof
-		'. of postpone bf-out endof
+		', of postpone bf,                            endof
+		'. of postpone bf.                            endof
 		\ compile loop operations
-		'[ of compile-bf-lbrace endof
-		'] of compile-bf-rbrace endof
+		'[ of compile-bf-lbrace                       endof
+		'] of compile-bf-rbrace                       endof
 	endcase
-;
-: compile-bf-source
-	bfc-source-length @ 0 do
-		bfc-source-addr @ i chars + c@ compile-char
-	loop
 ;
 
 \ save the code address and length in variables used for compiling
@@ -158,18 +141,47 @@ variable bfc-source-length
 	bfc-source-addr !
 ;
 
-\ code to quote + compile bf code into the current word
-: [bf]" 34 parse load-bf-source compile-bf-source ; immediate
+\ make the string at bfc-source-addr/length into forth words
+: compile-bf-source ( -- )
+	bfc-source-length @ 0 do
+		bfc-source-addr @ i chars + c@ compile-char
+	loop
+;
 
-: [bf-setup]    postpone bf-setup ; immediate  \ mostly for symmetry
-: [bf-teardown] wrapup-stackable bf-teardown ; \ teardown with wrapup -compile only!
+\ allocate initial memory for the bf program
+\ and set up the S A O values
+: bf-setup ( -- S A O )
+	mem-unit dup allocate throw \ n a
+	2dup swap erase          \ n a
+	swap swap 0     \ S A O
+;
+\ opposite of bf-setup
+: bf-teardown ( run-time: S A O -- )
+	drop nip free throw
+;
+
+\ same thing (almost) but for use inside other words
+: [bf-setup]  ( run-time: -- S A O )  \ mostly for symmetry
+	postpone bf-setup
+; immediate
+
+: [bf-teardown] ( run-time: SAO -- ) \ teardown but with wrapup
+	wrapup-stackable
+	postpone bf-teardown
+; immediate
+
+\ code to quote + compile bf code into the current word
+: [bf]" ( compile-time: 'ccc"' -- ??? ) \ ??? because unbalanced []-commands may leave stuff on the stack
+	34 parse       \ a u
+	load-bf-source \ -
+	compile-bf-source
+; immediate
 
 \ code to quote and return an xt for a single line of bf code needs to know the amount of memory needed as well
-: bf" ( n "bf code" -- xt )
+: bf" ( 'ccc"' -- xt )
 	:noname
-		postpone bf-setup
+		postpone [bf-setup]
 		postpone [bf]"
-		wrapup-stackable
-		postpone bf-teardown
+		postpone [bf-teardown]
 	postpone ;
 ;

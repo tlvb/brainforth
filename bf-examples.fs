@@ -5,13 +5,26 @@ include brainforth.fs
 : bold 27 emit ." [1m" ;
 : regular 27 emit ." [0m" ;
 
-cr cr red bold ." EXAMPLE 1 ==============================" regular cr cr
+cr cr red bold ." EXAMPLE 1 ==============================" regular cr
+      red bold ." on the fly creation and execution of xt" regular cr cr
+
+bf" ++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
+green
+execute
+regular
+
+cr cr
+
+cr cr red bold ." EXAMPLE 1 ==============================" regular cr
+      red bold ." putting multiple lines of bf code inside a word" regular cr cr
 
 : my-hello-world
 	." Hello from before the big bang!" cr
 	[bf-setup]
-	[bf]" ++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>"
-	[bf]" ---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
+	[bf]" ++++++++[>++++[>++>+++>+++>"
+	[bf]" +<<<<-]>+>+>->>+[<]<-]>>.>-"
+	[bf]" --.+++++++..+++.>>.<-.<.+++"
+	[bf]" .------.--------.>>+.>++."
 	[bf-teardown]
 	." Hello from after the heat death of the universe!" cr
 ;
@@ -26,14 +39,4 @@ cr cr
 green
 see my-hello-world
 regular
-cr cr red bold ." EXAMPLE 2 ==============================" regular cr cr
-
-green
-
-bf" ++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.+++++++..+++.>>.<-.<.+++.------.--------.>>+.>++."
-execute
-
-regular
-
-cr cr
 bye
